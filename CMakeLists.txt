@@ -50,10 +50,11 @@ if (APR_FOUND)
 endif (APR_FOUND)
 
 # generate custom msg headers
-rosidl_generate_interfaces(${PROJECT_NAME}_custom_msg
+rosidl_generate_interfaces(${PROJECT_NAME}_custom_msgs
   "msg/CustomPoint.msg"
   "msg/CustomMsg.msg"
   DEPENDENCIES builtin_interfaces std_msgs
+  LIBRARY_NAME ${PROJECT_NAME}
 )
 
 ## make sure the livox_lidar_sdk_shared library is installed
@@ -93,17 +94,13 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
 target_include_directories(${PROJECT_NAME} PRIVATE ${livox_sdk_INCLUDE_DIRS})
 
 # get include directories of custom msg headers
-rosidl_get_typesupport_target(cpp_typesupport_target
-${PROJECT_NAME}_custom_msg rosidl_typesupport_cpp)
-
-target_link_libraries(${PROJECT_NAME} "${cpp_typesupport_target}")
+rosidl_get_typesupport_target(cpp_typesupport_target ${PROJECT_NAME}_custom_msgs rosidl_typesupport_cpp)
 
 # include file direcotry
 target_include_directories(${PROJECT_NAME} PUBLIC
   ${PCL_INCLUDE_DIRS}
   ${APR_INCLUDE_DIRS}
   ${LIVOX_LIDAR_SDK_INCLUDE_DIR}
-  ${LIVOX_INTERFACES_INCLUDE_DIRECTORIES}   # for custom msgs
   3rdparty
   src
 )
@@ -111,7 +108,7 @@ target_include_directories(${PROJECT_NAME} PUBLIC
 # link libraries
 target_link_libraries(${PROJECT_NAME}
   ${LIVOX_LIDAR_SDK_LIBRARY}
-  ${LIVOX_INTERFACE_TARGET}   # for custom msgs
+  ${cpp_typesupport_target}
   ${PPT_LIBRARY}
   ${Boost_LIBRARY}
   ${PCL_LIBRARIES}
