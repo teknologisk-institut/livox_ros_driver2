@@ -1,11 +1,10 @@
-import os
-from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch_ros.actions import Node
-import launch
-from launch.actions import DeclareLaunchArgument, LogInfo
-from launch.substitutions import PathJoinSubstitution, LaunchConfiguration
+from launch.actions import DeclareLaunchArgument
+from launch.substitutions import PathJoinSubstitution, LaunchConfiguration, NotEqualsSubstitution
 from launch_ros.substitutions import FindPackageShare
+from launch_ros.actions import SetRemap
+from launch.conditions import IfCondition
 
 ################### user configure parameters for ros2 start ###################
 multi_topic   = 0    # 0-All LiDARs share the same topic, 1-One LiDAR one topic
@@ -37,6 +36,25 @@ def generate_launch_description():
               description="0-Pointcloud2(PointXYZRTL), 1-customized pointcloud format"
     )
 
+    lidar_topic_arg = DeclareLaunchArgument(
+              'lidar_topic',
+              default_value="",
+              description="Remap lidar topic to supplied topic."
+    )
+    lidar_topic = LaunchConfiguration('lidar_topic')
+
+    lidar_remap = SetRemap('/livox/lidar', lidar_topic, condition=IfCondition(NotEqualsSubstitution(lidar_topic,"")))
+
+
+    imu_topic_arg = DeclareLaunchArgument(
+              'imu_topic',
+              default_value="",
+              description="Remap topic to this."
+    )
+    imu_topic = LaunchConfiguration('imu_topic')
+
+    imu_remap = SetRemap('/livox/imu', imu_topic, condition=IfCondition(NotEqualsSubstitution(imu_topic,"")))
+
     livox_ros2_params = [
       {"xfer_format": LaunchConfiguration('xfer_format')},
       {"multi_topic": multi_topic},
@@ -54,7 +72,7 @@ def generate_launch_description():
         executable='livox_ros_driver2_node',
         name='livox_lidar_publisher',
         output='screen',
-        parameters=livox_ros2_params
+        parameters=livox_ros2_params,
         )
-
-    return LaunchDescription([user_config_path_arg, xfer_format_arg, livox_driver])
+    
+    return LaunchDescription([user_config_path_arg, xfer_format_arg, lidar_topic_arg, imu_topic_arg, lidar_remap, imu_remap, livox_driver])
