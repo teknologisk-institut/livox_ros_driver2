@@ -49,6 +49,7 @@ typedef enum {
 /** Type-Definitions based on ROS versions */
 template <typename MessageT> using Publisher = rclcpp::Publisher<MessageT>;
 using PublisherPtr = std::shared_ptr<rclcpp::PublisherBase>;
+using PublisherListPtr = std::unordered_map<uint8_t,PublisherPtr>;
 using PointCloud2 = sensor_msgs::msg::PointCloud2;
 using PointField = sensor_msgs::msg::PointField;
 using CustomMsg = livox_ros_driver2::msg::CustomMsg;
@@ -85,19 +86,19 @@ class Lddc final {
   void PollingLidarPointCloudData(uint8_t index, LidarDevice *lidar);
   void PollingLidarImuData(uint8_t index, LidarDevice *lidar);
 
-  void PublishPointcloud2(LidarDataQueue *queue, uint8_t index);
-  void PublishCustomPointcloud(LidarDataQueue *queue, uint8_t index);
-  void PublishPclMsg(LidarDataQueue *queue, uint8_t index);
+  void PublishPointcloud2(StoragePacket& pkg, uint8_t index, uint8_t format);
+  void PublishCustomPointcloud(StoragePacket& pkg, uint8_t index, uint8_t format);
+  void PublishPclMsg(StoragePacket& pkg, uint8_t index);
 
   void PublishImuData(LidarImuDataQueue& imu_data_queue, const uint8_t index);
 
   void InitPointcloud2MsgHeader(PointCloud2& cloud);
   void InitPointcloud2Msg(const StoragePacket& pkg, PointCloud2& cloud, uint64_t& timestamp);
-  void PublishPointcloud2Data(const uint8_t index, uint64_t timestamp, const PointCloud2& cloud);
+  void PublishPointcloud2Data(const uint8_t index, uint64_t timestamp, const PointCloud2& cloud, uint8_t format);
 
   void InitCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg, uint8_t index);
   void FillPointsToCustomMsg(CustomMsg& livox_msg, const StoragePacket& pkg);
-  void PublishCustomPointData(const CustomMsg& livox_msg, const uint8_t index);
+  void PublishCustomPointData(const CustomMsg& livox_msg, const uint8_t index, uint8_t format);
 
   void InitPclMsg(const StoragePacket& pkg, PointCloud& cloud, uint64_t& timestamp);
   void FillPointsToPclMsg(const StoragePacket& pkg, PointCloud& pcl_msg);
@@ -111,7 +112,7 @@ class Lddc final {
 
   PublisherPtr CreatePublisher(uint8_t msg_type, std::string &topic_name, uint32_t queue_size);
 
-  PublisherPtr GetCurrentPublisher(uint8_t index);
+  PublisherPtr GetCurrentPublisher(uint8_t index, uint8_t format);
   PublisherPtr GetCurrentImuPublisher(uint8_t index);
 
  private:
@@ -126,8 +127,8 @@ class Lddc final {
   std::string topic_lidar_;
   std::string topic_imu_;
 
-  PublisherPtr private_pub_[kMaxSourceLidar];
-  PublisherPtr global_pub_;
+  PublisherListPtr private_pub_[kMaxSourceLidar];
+  PublisherListPtr global_pub_;
   PublisherPtr private_imu_pub_[kMaxSourceLidar];
   PublisherPtr global_imu_pub_;
 
