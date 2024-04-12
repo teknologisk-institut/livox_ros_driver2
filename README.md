@@ -1,3 +1,8 @@
+# 0 Changes made by LAG
+* Merged PR that combined ROS1/2 packagesetup.
+* Removed ROS1 and EOL ROS2 (Pre humble) support
+* Added so imu_frame_id, topic_lidar and topic_imu can be set from parameters(file)
+
 # Livox ROS Driver 2
 
 Livox ROS Driver 2 is the 2nd-generation driver package used to connect LiDAR products produced by Livox, ROS2.
