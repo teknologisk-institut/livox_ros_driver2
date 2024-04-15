@@ -2,6 +2,7 @@
 * Merged PR that combined ROS1/2 packagesetup.
 * Removed ROS1 and EOL ROS2 (Pre humble) support
 * Added so imu_frame_id, topic_lidar and topic_imu can be set from parameters(file)
+* Changed so both Pointcloud2Msg and LivoxCustomMsg is published.
 
 # Livox ROS Driver 2
 
