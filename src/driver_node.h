@@ -27,6 +27,9 @@
 
 #include "include/ros_headers.h"
 
+#include <diagnostic_msgs/msg/diagnostic_array.hpp>
+#include <sensor_msgs/msg/temperature.hpp>
+
 namespace livox_ros {
 
 class Lddc;
@@ -43,12 +46,20 @@ class DriverNode final : public rclcpp::Node {
  private:
   void PointCloudDataPollThread();
   void ImuDataPollThread();
+  void TemperaturePoll();
 
   std::unique_ptr<Lddc> lddc_ptr_;
   std::shared_ptr<std::thread> pointclouddata_poll_thread_;
   std::shared_ptr<std::thread> imudata_poll_thread_;
   std::shared_future<void> future_;
   std::promise<void> exit_signal_;
+  rclcpp::Publisher<sensor_msgs::msg::Temperature>::SharedPtr temperature_pub_;
+  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_pub_;
+  rclcpp::TimerBase::SharedPtr temperature_timer_;
+  std::string temperature_frame_id_;
+  double temperature_warn_c_ = 80.0;
+  double temperature_error_c_ = 90.0;
+  double temperature_stale_timeout_s_ = 15.0;
 };
 
 } // namespace livox_ros

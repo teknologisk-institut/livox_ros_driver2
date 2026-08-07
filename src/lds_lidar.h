@@ -27,6 +27,8 @@
 #ifndef LIVOX_ROS_DRIVER_LDS_LIDAR_H_
 #define LIVOX_ROS_DRIVER_LDS_LIDAR_H_
 
+#include <chrono>
+#include <map>
 #include <memory>
 #include <mutex>
 #include <vector>
@@ -40,6 +42,13 @@
 
 namespace livox_ros {
 
+struct LidarTemperatureSample {
+  bool valid = false;
+  double temperature_c = 0.0;
+  livox_status last_query_status = kLivoxLidarStatusNotConnected;
+  std::chrono::steady_clock::time_point received_at;
+};
+
 class LdsLidar final : public Lds {
  public:
   static LdsLidar *GetInstance(double publish_freq) {
@@ -52,6 +61,13 @@ class LdsLidar final : public Lds {
   bool Start();
 
   int DeInitLdsLidar(void);
+
+  void RegisterLidarHandle(uint32_t handle);
+  void QueryTemperature(uint32_t handle);
+  void QueryTemperatures();
+  std::map<uint32_t, LidarTemperatureSample> GetTemperatureSamples() const;
+  static bool ParseCoreTemperature(
+    const LivoxLidarDiagInternalInfoResponse *response, double &temperature_c);
  private:
   LdsLidar(double publish_freq);
   LdsLidar(const LdsLidar &) = delete;
@@ -68,6 +84,10 @@ class LdsLidar final : public Lds {
   void ResetLdsLidar(void);
 
   void SetLidarPubHandle();
+
+  static void TemperatureCallback(
+    livox_status status, uint32_t handle,
+    LivoxLidarDiagInternalInfoResponse *response, void *client_data);
 
 	// auto connect mode
 	void EnableAutoConnectMode(void) { auto_connect_mode_ = true; }
@@ -87,6 +107,9 @@ class LdsLidar final : public Lds {
   uint32_t whitelist_count_;
   volatile bool is_initialized_;
   char broadcast_code_whitelist_[kMaxLidarCount][kBroadcastCodeSize];
+
+  mutable std::mutex temperature_mutex_;
+  std::map<uint32_t, LidarTemperatureSample> temperature_samples_;
 };
 
 }  // namespace livox_ros
