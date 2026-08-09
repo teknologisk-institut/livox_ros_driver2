@@ -39,6 +39,7 @@ void LivoxLidarCallback::LidarInfoChangeCallback(const uint32_t handle,
     return;
   }
   LdsLidar* lds_lidar = static_cast<LdsLidar*>(client_data);
+  lds_lidar->RegisterLidarHandle(handle);
 
   LidarDevice* lidar_device = GetLidarDevice(handle, client_data);
   if (lidar_device == nullptr) {
@@ -106,6 +107,7 @@ void LivoxLidarCallback::LidarInfoChangeCallback(const uint32_t handle,
   std::cout << "begin to change work mode to 'Normal', handle: " << handle << std::endl;
   SetLivoxLidarWorkMode(handle, kLivoxLidarNormal, WorkModeChangedCallback, nullptr);
   EnableLivoxLidarImuData(handle, LivoxLidarCallback::EnableLivoxLidarImuDataCallback, lds_lidar);
+  lds_lidar->QueryTemperature(handle);
   return;
 }
 

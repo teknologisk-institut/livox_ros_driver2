@@ -54,6 +54,7 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   
   std::string topic_lidar;
   std::string topic_imu;
+  std::string topic_temperature;
 
   this->declare_parameter("xfer_format", xfer_format);
   this->declare_parameter("multi_topic", 0);
@@ -67,6 +68,11 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   this->declare_parameter("lvx_file_path", "/home/livox/livox_test.lvx");
   this->declare_parameter("topic_lidar", "/livox/lidar");
   this->declare_parameter("topic_imu", "/livox/imu");
+  this->declare_parameter("topic_temperature", "/livox/temperature");
+  this->declare_parameter("temperature_poll_rate_hz", 0.5);
+  this->declare_parameter("temperature_warn_c", 80.0);
+  this->declare_parameter("temperature_error_c", 90.0);
+  this->declare_parameter("temperature_stale_timeout_s", 15.0);
 
   this->get_parameter("xfer_format", xfer_format);
   this->get_parameter("multi_topic", multi_topic);
@@ -77,6 +83,23 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
   this->get_parameter("imu_frame_id", imu_frame_id);
   this->get_parameter("topic_lidar", topic_lidar);
   this->get_parameter("topic_imu", topic_imu);
+  this->get_parameter("topic_temperature", topic_temperature);
+  this->get_parameter("temperature_warn_c", temperature_warn_c_);
+  this->get_parameter("temperature_error_c", temperature_error_c_);
+  this->get_parameter("temperature_stale_timeout_s", temperature_stale_timeout_s_);
+  temperature_frame_id_ = frame_id;
+
+  double temperature_poll_rate_hz = 0.5;
+  this->get_parameter("temperature_poll_rate_hz", temperature_poll_rate_hz);
+  if (temperature_poll_rate_hz <= 0.0) {
+    DRIVER_WARN(*this, "temperature_poll_rate_hz must be positive; using 0.5 Hz");
+    temperature_poll_rate_hz = 0.5;
+  }
+  if (temperature_error_c_ <= temperature_warn_c_) {
+    DRIVER_WARN(*this, "temperature_error_c must exceed temperature_warn_c; using 80/90 C");
+    temperature_warn_c_ = 80.0;
+    temperature_error_c_ = 90.0;
+  }
 
   if (publish_freq > 100.0) {
     publish_freq = 100.0;
@@ -116,6 +139,12 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
 
   pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, this);
   imudata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::ImuDataPollThread, this);
+
+  temperature_pub_ = this->create_publisher<sensor_msgs::msg::Temperature>(topic_temperature, 10);
+  diagnostics_pub_ = this->create_publisher<diagnostic_msgs::msg::DiagnosticArray>("/diagnostics", 10);
+  temperature_timer_ = this->create_wall_timer(
+    std::chrono::duration<double>(1.0 / temperature_poll_rate_hz),
+    std::bind(&DriverNode::TemperaturePoll, this));
 }
 
 }  // namespace livox_ros

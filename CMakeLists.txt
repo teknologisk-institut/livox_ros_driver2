@@ -136,6 +136,12 @@ if(BUILD_TESTING)
     ${LIVOX_LIDAR_SDK_INCLUDE_DIR}
     src)
   target_link_libraries(test_lds_shutdown ${PROJECT_NAME})
+
+  ament_add_gtest(test_temperature_parser test/test_temperature_parser.cpp)
+  target_include_directories(test_temperature_parser PRIVATE
+    ${LIVOX_LIDAR_SDK_INCLUDE_DIR}
+    src)
+  target_link_libraries(test_temperature_parser ${PROJECT_NAME})
 endif()
 
 ament_auto_package(INSTALL_TO_SHARE

@@ -26,6 +26,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <thread>
@@ -155,6 +156,7 @@ bool LdsLidar::InitLivoxLidar() {
     p_lidar->lidar_type = kLivoxLidarType;
     p_lidar->livox_config = config;
     p_lidar->handle = config.handle;
+    RegisterLidarHandle(config.handle);
 
     LidarExtParameter lidar_param;
     lidar_param.handle = config.handle;
@@ -188,6 +190,82 @@ void LdsLidar::SetLidarPubHandle() {
 
   double publish_freq = Lds::GetLdsFrequency();
   pub_handler().SetPointCloudConfig(publish_freq);
+}
+
+void LdsLidar::RegisterLidarHandle(uint32_t handle) {
+  std::lock_guard<std::mutex> lock(temperature_mutex_);
+  temperature_samples_.emplace(handle, LidarTemperatureSample{});
+}
+
+void LdsLidar::QueryTemperature(uint32_t handle) {
+  RegisterLidarHandle(handle);
+  const livox_status status = QueryLivoxLidarInternalInfo(
+    handle, LdsLidar::TemperatureCallback, this);
+  if (status != kLivoxLidarStatusSuccess) {
+    std::lock_guard<std::mutex> lock(temperature_mutex_);
+    temperature_samples_[handle].last_query_status = status;
+  }
+}
+
+void LdsLidar::QueryTemperatures() {
+  std::vector<uint32_t> handles;
+  {
+    std::lock_guard<std::mutex> lock(temperature_mutex_);
+    for (const auto &item : temperature_samples_) {
+      handles.push_back(item.first);
+    }
+  }
+  for (const uint32_t handle : handles) {
+    QueryTemperature(handle);
+  }
+}
+
+std::map<uint32_t, LidarTemperatureSample> LdsLidar::GetTemperatureSamples() const {
+  std::lock_guard<std::mutex> lock(temperature_mutex_);
+  return temperature_samples_;
+}
+
+bool LdsLidar::ParseCoreTemperature(
+    const LivoxLidarDiagInternalInfoResponse *response, double &temperature_c) {
+  if (response == nullptr || response->ret_code != 0) {
+    return false;
+  }
+
+  uint32_t offset = 0;
+  for (uint16_t i = 0; i < response->param_num; ++i) {
+    const auto *kv = reinterpret_cast<const LivoxLidarKeyValueParam *>(
+      &response->data[offset]);
+    if (kv->key == kKeyCoreTemp && kv->length == sizeof(int32_t)) {
+      int32_t core_temp_hundredths_c = 0;
+      memcpy(&core_temp_hundredths_c, kv->value, sizeof(core_temp_hundredths_c));
+      temperature_c = static_cast<double>(core_temp_hundredths_c) / 100.0;
+      return true;
+    }
+    offset += sizeof(kv->key) + sizeof(kv->length) + kv->length;
+  }
+  return false;
+}
+
+void LdsLidar::TemperatureCallback(
+    livox_status status, uint32_t handle,
+    LivoxLidarDiagInternalInfoResponse *response, void *client_data) {
+  if (client_data == nullptr) {
+    return;
+  }
+
+  auto *lds_lidar = static_cast<LdsLidar *>(client_data);
+  double temperature_c = 0.0;
+  const bool valid = status == kLivoxLidarStatusSuccess &&
+    ParseCoreTemperature(response, temperature_c);
+
+  std::lock_guard<std::mutex> lock(lds_lidar->temperature_mutex_);
+  auto &sample = lds_lidar->temperature_samples_[handle];
+  sample.last_query_status = status;
+  if (valid) {
+    sample.valid = true;
+    sample.temperature_c = temperature_c;
+    sample.received_at = std::chrono::steady_clock::now();
+  }
 }
 
 bool LdsLidar::LivoxLidarStart() {

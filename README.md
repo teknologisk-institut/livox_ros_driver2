@@ -3,6 +3,7 @@
 * Removed ROS1 and EOL ROS2 (Pre humble) support
 * Added so imu_frame_id, topic_lidar and topic_imu can be set from parameters(file)
 * Changed so both Pointcloud2Msg and LivoxCustomMsg is published.
+* Publishes LiDAR core temperature and stale-aware ROS diagnostics.
 
 # Livox ROS Driver 2
 
@@ -106,6 +107,13 @@ All internal parameters of Livox_ros_driver2 are in the launch file. Below are d
 | publish_freq | Set the frequency of point cloud publish <br>Floating-point data type, recommended values 5.0, 10.0, 20.0, 50.0, etc. The maximum publish frequency is 100.0 Hz.| 10.0    |
 | multi_topic  | If the LiDAR device has an independent topic to publish pointcloud data<br>0 -- All LiDAR devices use the same topic to publish pointcloud data<br>1 -- Each LiDAR device has its own topic to publish point cloud data | 0       |
 | xfer_format  | Set pointcloud format<br>0 -- Livox pointcloud2(PointXYZRTLT) pointcloud format<br>1 -- Livox customized pointcloud format<br>2 -- Standard pointcloud2 (pcl :: PointXYZI) pointcloud format in the PCL library (just for ROS) | 0       |
+
+The driver queries SDK2 internal information at `temperature_poll_rate_hz`
+(default 0.5 Hz). It publishes the signed `core_temp` value, converted from
+hundredths of a degree Celsius, as `sensor_msgs/msg/Temperature` on
+`topic_temperature`. A `lidar/temperature/<ip>` status is also published on
+`/diagnostics`; its WARN/ERROR limits and stale timeout are configurable with
+`temperature_warn_c`, `temperature_error_c`, and `temperature_stale_timeout_s`.
 
   **Note :**
 

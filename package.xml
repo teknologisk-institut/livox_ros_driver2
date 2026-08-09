@@ -18,6 +18,7 @@
     <depend >rcl_interfaces</depend>
     <depend >rcutils</depend>
     <depend >livox_sdk2</depend>
+    <depend >diagnostic_msgs</depend>
     <exec_depend >rosbag2</exec_depend>
     <exec_depend >rosidl_default_runtime</exec_depend>
     <test_depend >ament_lint_auto</test_depend>
