@@ -24,6 +24,7 @@
 
 #include <iostream>
 #include <chrono>
+#include <stdexcept>
 #include <vector>
 #include <csignal>
 #include <thread>
@@ -131,10 +132,22 @@ DriverNode::DriverNode(const rclcpp::NodeOptions & node_options)
     if ((read_lidar->InitLdsLidar(user_config_path))) {
       DRIVER_INFO(*this, "Init lds lidar success!");
     } else {
+      // Fail fast: a driver idling with a dead SDK looks healthy to the
+      // graph (node exists, topics silent) and masked real hardware
+      // faults behind phase1=true (2026-08-11 systemd-start forensics).
+      // Throwing aborts the standalone node with a nonzero exit; the
+      // bringup launch respawns it, giving each attempt a virgin SDK
+      // state (the SDK singletons do not support re-Init after partial
+      // failure, so process-level retry is the only safe retry).
       DRIVER_ERROR(*this, "Init lds lidar fail!");
+      throw std::runtime_error(
+          "Livox SDK init failed (lidar unreachable, host IP not "
+          "configured on the lidar NIC, or port in use) - exiting for "
+          "supervised respawn");
     }
   } else {
     DRIVER_ERROR(*this, "Invalid data src (%d), please check the launch file", data_src);
+    throw std::runtime_error("Invalid Livox data_src parameter");
   }
 
   pointclouddata_poll_thread_ = std::make_shared<std::thread>(&DriverNode::PointCloudDataPollThread, this);
